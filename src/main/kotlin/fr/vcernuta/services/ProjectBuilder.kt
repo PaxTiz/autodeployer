@@ -1,43 +1,35 @@
 package fr.vcernuta.services
 
-import fr.vcernuta.models.GitlabWebhook
-import fr.vcernuta.models.Project
+import fr.vcernuta.models.*
 import java.io.File
 import kotlin.io.path.Path
 
 typealias ManualFiles = Map<String, Long>
 
-enum class SlackAction {
-	GitCommandFailed,
-	ManualActionRequired,
-	ProjectCommandFailed,
-	BuildSuccessful,
-}
-
 class ProjectBuilder(private val project: Project, private val webhook: GitlabWebhook) {
 	
-	fun build() {
+	suspend fun build(config: Configuration) {
 		val manualFiles = getManualFiles()
-		
+
 		if (!getLatestChanges()) {
 			println("ERROR: Failed to get latest changes")
-			notifyOnSlack(SlackAction.GitCommandFailed)
+			notifyOnSlack(config.slack, SlackAction.GitCommandFailed)
 			return
 		}
-		
+
 		if (isManualChangeRequired(manualFiles)) {
 			println("ERROR: A manual change is required in order to update the project")
-			notifyOnSlack(SlackAction.ManualActionRequired)
+			notifyOnSlack(config.slack, SlackAction.ManualActionRequired)
 			return
 		}
-		
+
 		if (!runProjectCommands()) {
 			println("ERROR: There was an error while running deployment commands")
-			notifyOnSlack(SlackAction.ProjectCommandFailed)
+			notifyOnSlack(config.slack, SlackAction.ProjectCommandFailed)
 			return
 		}
 		
-		notifyOnSlack(SlackAction.BuildSuccessful)
+		notifyOnSlack(config.slack, SlackAction.BuildSuccessful)
 	}
 	
 	private fun getLatestChanges(): Boolean {
@@ -66,25 +58,12 @@ class ProjectBuilder(private val project: Project, private val webhook: GitlabWe
 		return true
 	}
 	
-	private fun notifyOnSlack(action: SlackAction) {
-		// TODO: Send a message on a Slack channel
-		when (action) {
-			SlackAction.GitCommandFailed -> {
-			
-			}
-			
-			SlackAction.ManualActionRequired -> {
-			
-			}
-			
-			SlackAction.ProjectCommandFailed -> {
-			
-			}
-			
-			SlackAction.BuildSuccessful -> {
-			
-			}
-		}
+	private suspend fun notifyOnSlack(config: SlackConfiguration, action: SlackAction) {
+		val commitAuthor = webhook.getLatestCommit().author
+		val genericCommitAuthor = CommitAuthor(commitAuthor.name, commitAuthor.email)
+		val slackRequest = SlackRequest(config, project, genericCommitAuthor)
+		
+		slackRequest.send(action)
 	}
 	
 	private fun getManualFiles(): ManualFiles {

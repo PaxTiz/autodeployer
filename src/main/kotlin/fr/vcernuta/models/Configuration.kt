@@ -5,7 +5,10 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 @Serializable
-data class Configuration(val projects: List<Project>) {
+data class Configuration(
+	val projects: List<Project>,
+	val slack: SlackConfiguration,
+) {
 	
 	companion object {
 		fun readFile(): Configuration {

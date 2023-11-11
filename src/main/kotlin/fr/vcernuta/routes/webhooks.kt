@@ -29,7 +29,7 @@ fun Route.webhookRoutes() = route("/webhook") {
 		}
 		
 		launch(Dispatchers.IO) {
-			ProjectBuilder(project, webhook).build()
+			ProjectBuilder(project, webhook).build(config)
 		}
 		
 		call.respond(HttpStatusCode.OK)
