@@ -61,9 +61,14 @@ class ProjectBuilder(private val project: Project, private val webhook: GitlabWe
 	private suspend fun notifyOnSlack(config: SlackConfiguration, action: SlackAction) {
 		val commitAuthor = webhook.getLatestCommit().author
 		val genericCommitAuthor = CommitAuthor(commitAuthor.name, commitAuthor.email)
-		val slackRequest = SlackRequest(config, project, genericCommitAuthor)
+		val slackRequest = SlackRequest(config)
 		
-		slackRequest.send(action)
+		when (action) {
+			SlackAction.GitCommandFailed -> slackRequest.gitCommandFailed(project)
+			SlackAction.ManualActionRequired -> slackRequest.manualActionRequired(project)
+			SlackAction.ProjectCommandFailed -> slackRequest.projectCommandFailed(project)
+			SlackAction.BuildSuccessful -> slackRequest.buildSuccessful(project, genericCommitAuthor)
+		}
 	}
 	
 	private fun getManualFiles(): ManualFiles {

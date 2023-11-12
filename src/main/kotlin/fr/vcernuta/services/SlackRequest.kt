@@ -15,22 +15,20 @@ private val httpClient = HttpClient(CIO) {
 	}
 }
 
-class SlackRequest(
-	private val slack: SlackConfiguration,
-	private val project: Project,
-	private val author: CommitAuthor,
-) {
+class SlackRequest(private val slack: SlackConfiguration) {
 	
-	suspend fun send(action: SlackAction) {
-		when (action) {
-			SlackAction.GitCommandFailed -> gitCommandFailed()
-			SlackAction.ManualActionRequired -> manualActionRequired()
-			SlackAction.ProjectCommandFailed -> projectCommandFailed()
-			SlackAction.BuildSuccessful -> buildSuccessful()
-		}
+	suspend fun unknownWebhookEvent(project: Project, event: String) {
+		val message = """
+			*[${project.name}] 🔴 Unknown webhook event*
+			There was an invalid event send to the webhook deployment handler.
+			
+			*Event received: $event.*
+		""".trimIndent()
+		
+		sendRequest(message)
 	}
 	
-	private suspend fun gitCommandFailed() {
+	suspend fun gitCommandFailed(project: Project) {
 		val message = """
 			*[${project.name}] 🔴 Deployment failed*
 			There was an error while fetching the latest changes from the remote repository.
@@ -41,7 +39,7 @@ class SlackRequest(
 		sendRequest(message)
 	}
 	
-	private suspend fun manualActionRequired() {
+	suspend fun manualActionRequired(project: Project) {
 		val message = """
 			*[${project.name}] 🟠 Deployment has been suspended*
 			A manual intervention is required in order to deploy the latest version.
@@ -50,7 +48,7 @@ class SlackRequest(
 		sendRequest(message)
 	}
 	
-	private suspend fun projectCommandFailed() {
+	suspend fun projectCommandFailed(project: Project) {
 		val message = """
 			*[${project.name}] 🔴 Deployment failed*
 			There was an error while deploying the latest version.)
@@ -59,8 +57,8 @@ class SlackRequest(
 		sendRequest(message)
 	}
 	
-	private suspend fun buildSuccessful() {
-		val slackUser = findSlackUserByEmail()
+	suspend fun buildSuccessful(project: Project, author: CommitAuthor) {
+		val slackUser = findSlackUserByEmail(author.email)
 		
 		val userHandle = if (slackUser == null) {
 			author.username
@@ -89,10 +87,10 @@ class SlackRequest(
 		}
 	}
 	
-	private suspend fun findSlackUserByEmail(): SlackUser? {
+	private suspend fun findSlackUserByEmail(email: String): SlackUser? {
 		val response = httpClient.get("https://slack.com/api/users.lookupByEmail") {
 			contentType(ContentType.Application.Json)
-			url { parameters.append("email", author.email) }
+			url { parameters.append("email", email) }
 			
 			headers { bearerAuth(slack.token) }
 		}
