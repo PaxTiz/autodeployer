@@ -10,7 +10,7 @@ val AutoDeployerConfigurationKey = AttributeKey<Configuration>("config")
 
 val ReadAutoDeployerConfigurationFile = createApplicationPlugin("Configuration") {
 	on(MonitoringEvent(ApplicationStarted)) {
-		it.attributes.put(AutoDeployerConfigurationKey, Configuration.readFile())
+		it.attributes.put(AutoDeployerConfigurationKey, Configuration.readFile(environment!!.developmentMode))
 	}
 }
 
@@ -19,7 +19,7 @@ fun main(args: Array<String>) = EngineMain.main(args)
 fun Application.module() {
 	install(ReadAutoDeployerConfigurationFile)
 	
+	configureLogging()
 	configureRouting()
 	configureSerialization()
 }
-
