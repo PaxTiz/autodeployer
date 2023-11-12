@@ -2,6 +2,7 @@ package fr.vcernuta.services
 
 import fr.vcernuta.models.*
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
@@ -59,9 +60,17 @@ class SlackRequest(
 	}
 	
 	private suspend fun buildSuccessful() {
+		val slackUser = findSlackUserByEmail()
+		
+		val userHandle = if (slackUser == null) {
+			author.username
+		} else {
+			"<@${slackUser.id}>"
+		}
+		
 		val message = """
 			*[${project.name}] 🟢 Deployment Successful*
-			The latest push on `main` by *${author.username}* has been deployed successfully.
+			The latest push on `main` by *${userHandle}* has been deployed successfully.
 			
 			The new version is available at ${project.url}.
 		""".trimIndent()
@@ -77,6 +86,30 @@ class SlackRequest(
 			setBody(request)
 			
 			headers { bearerAuth(slack.token) }
+		}
+	}
+	
+	private suspend fun findSlackUserByEmail(): SlackUser? {
+		val response = httpClient.get("https://slack.com/api/users.lookupByEmail") {
+			contentType(ContentType.Application.Json)
+			url { parameters.append("email", author.email) }
+			
+			headers { bearerAuth(slack.token) }
+		}
+		
+		if (response.status != HttpStatusCode.OK) {
+			return null
+		}
+		
+		try {
+			val responseData = response.body<SlackFindUserByEmailResponse>()
+			if (!responseData.ok) {
+				return null
+			}
+			
+			return responseData.user
+		} catch (e: Exception) {
+			return null
 		}
 	}
 	

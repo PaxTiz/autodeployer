@@ -23,3 +23,16 @@ data class SlackPostMessageRequest(
 	val text: String,
 	val username: String,
 )
+
+@Serializable
+data class SlackFindUserByEmailResponse(
+	val ok: Boolean,
+	val user: SlackUser?,
+	val error: String?
+)
+
+@Serializable
+data class SlackUser(
+	val id: String,
+	val name: String
+)
